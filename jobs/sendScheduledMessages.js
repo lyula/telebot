@@ -1,10 +1,15 @@
 const cron = require("node-cron");
-const cronParser = require("cron-parser"); // FIXED IMPORT
+const cronParser = require("cron-parser");
 const ScheduledMessage = require("../models/ScheduledMessage");
 const CronSent = require("../models/CronSent");
 const Group = require("../models/Group");
 const User = require("../models/User");
 const bot = require("../telegramBot");
+
+// Helper for parseExpression (handles both CJS and ESM builds)
+const parseExpression =
+  cronParser.parseExpression ||
+  (cronParser.default && cronParser.default.parseExpression);
 
 cron.schedule("* * * * *", async () => {
   const now = new Date();
@@ -21,8 +26,8 @@ cron.schedule("* * * * *", async () => {
 
   for (const msg of messages) {
     try {
-      // FIXED USAGE
-      const interval = cronParser.parseExpression(msg.schedule, { currentDate: now });
+      // Use the helper here
+      const interval = parseExpression(msg.schedule, { currentDate: now });
       const prev = interval.prev().toDate();
 
       if (Math.abs(now - prev) < 60000) {
@@ -84,12 +89,12 @@ cron.schedule("* * * * *", async () => {
         try {
           await CronSent.create({
             groupId: msg.groupId,
-            groupName: groupName,
+            groupName,
             message: msg.message,
             user: msg.user,
-            userName: userName,
+            userName,
             originalScheduledMessage: msg._id,
-            userSchedule: userSchedule,
+            userSchedule,
             sentAt: new Date(),
           });
           console.log("CronSent record created successfully for message:", msg._id);
