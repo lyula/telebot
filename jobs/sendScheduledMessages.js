@@ -1,25 +1,12 @@
 const cron = require("node-cron");
-const cronParser = require("cron-parser");
 const ScheduledMessage = require("../models/ScheduledMessage");
 const CronSent = require("../models/CronSent");
 const Group = require("../models/Group");
 const User = require("../models/User");
 const bot = require("../telegramBot");
 
-// Robust parseExpression helper for all cron-parser versions
-function getParseExpression() {
-  if (typeof cronParser.parseExpression === "function") {
-    return cronParser.parseExpression;
-  }
-  if (cronParser.default && typeof cronParser.default.parseExpression === "function") {
-    return cronParser.default.parseExpression;
-  }
-  throw new Error("Cannot find parseExpression in cron-parser");
-}
-const parseExpression = getParseExpression();
-
+// Run every minute to check all scheduled messages
 cron.schedule("* * * * *", async () => {
-  const now = new Date();
   let messages;
   try {
     messages = await ScheduledMessage.find({
@@ -32,12 +19,12 @@ cron.schedule("* * * * *", async () => {
   }
 
   for (const msg of messages) {
-    try {
-      // Use the robust helper
-      const interval = parseExpression(msg.schedule, { currentDate: now });
-      const prev = interval.prev().toDate();
+    // Schedule a cron job for each message if not already scheduled
+    if (!msg.schedule) continue; // skip if no schedule
 
-      if (Math.abs(now - prev) < 60000) {
+    // Schedule the message using node-cron
+    cron.schedule(msg.schedule, async () => {
+      try {
         await bot.sendMessage(msg.groupId, msg.message);
 
         // Ensure groupName is present
@@ -52,7 +39,7 @@ cron.schedule("* * * * *", async () => {
           }
         }
 
-        // Fetch user string name using the real field name
+        // Fetch user string name
         let userName = "";
         if (msg.user) {
           try {
@@ -62,27 +49,13 @@ cron.schedule("* * * * *", async () => {
             console.warn("Failed to fetch user name:", err);
             userName = "";
           }
-        } else {
-          console.warn("Scheduled message missing user field:", msg._id);
         }
 
         // Ensure userSchedule is present
-        let userSchedule = msg.userSchedule;
-        if (!userSchedule) {
-          try {
-            const scheduledMsg = await ScheduledMessage.findOne({
-              message: msg.message,
-              groupId: msg.groupId,
-            });
-            userSchedule = scheduledMsg ? scheduledMsg.userSchedule : "";
-          } catch (err) {
-            console.warn("Failed to fetch userSchedule:", err);
-            userSchedule = "";
-          }
-        }
+        let userSchedule = msg.userSchedule || "";
 
-        // Log before creating CronSent
-        console.log("Creating CronSent record for message:", {
+        // Record in CronSent
+        await CronSent.create({
           groupId: msg.groupId,
           groupName,
           message: msg.message,
@@ -93,33 +66,13 @@ cron.schedule("* * * * *", async () => {
           sentAt: new Date(),
         });
 
-        try {
-          await CronSent.create({
-            groupId: msg.groupId,
-            groupName,
-            message: msg.message,
-            user: msg.user,
-            userName,
-            originalScheduledMessage: msg._id,
-            userSchedule,
-            sentAt: new Date(),
-          });
-          console.log("CronSent record created successfully for message:", msg._id);
-        } catch (err) {
-          console.error("Failed to create CronSent record:", err);
-        }
-
-        // Mark as sent only for one-time messages (optional)
+        // Mark as sent only for one-time messages
         if (!msg.schedule || msg.schedule === 'one-time') {
-          try {
-            await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true, sentAt: new Date() });
-          } catch (err) {
-            console.error("Failed to update ScheduledMessage as sent:", err);
-          }
+          await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true, sentAt: new Date() });
         }
+      } catch (err) {
+        console.error("Error sending or recording scheduled message:", err);
       }
-    } catch (err) {
-      console.error("Cron parse/send error for message", msg._id, ":", err);
-    }
+    }, { scheduled: true });
   }
 });
