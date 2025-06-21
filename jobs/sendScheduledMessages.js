@@ -1,34 +1,31 @@
 const cron = require("node-cron");
+const cronParser = require("cron-parser");
 const ScheduledMessage = require("../models/ScheduledMessage");
+const bot = require("../telegramBot"); // Use the main bot instance
 
-// Run every minute (adjust as needed)
+// Run every minute
 cron.schedule("* * * * *", async () => {
   const now = new Date();
-  // Find all scheduled messages that should be sent now or at this interval
   const messages = await ScheduledMessage.find({
     isSent: false,
-    paused: false, // <-- Make sure this is included!
-    // Add your logic to match the current time with scheduleTime/interval
-    // For example, you could use a library like cron-parser to check if now matches scheduleTime
+    paused: false,
   });
 
   for (const msg of messages) {
-    // 1. Send the message to Telegram here (your bot logic)
-    // 2. Log the sent message in the DB as a new document
-    await ScheduledMessage.create({
-      groupId: msg.groupId,
-      message: msg.message,
-      createdAt: new Date(),
-      isSent: true,
-      sentAt: new Date(),
-      scheduleTime: msg.scheduleTime,
-      interval: msg.interval,
-      sent: true,
-      user: msg.user, // if you track user
-    });
+    try {
+      // Parse the cron schedule
+      const interval = cronParser.parseExpression(msg.schedule, { currentDate: now });
+      const prev = interval.prev().toDate();
 
-    // 3. If this is a one-time schedule, mark the original as sent
-    // For recurring, you may want to keep the original for future runs
-    // await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true });
+      // If the previous scheduled time is within the last minute, send now
+      if (Math.abs(now - prev) < 60000) {
+        await bot.sendMessage(msg.groupId, msg.message);
+
+        // Mark as sent (for one-time messages)
+        await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true, sentAt: new Date() });
+      }
+    } catch (err) {
+      console.error("Cron parse/send error:", err);
+    }
   }
 });
