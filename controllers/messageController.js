@@ -8,14 +8,22 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 // Schedule a message
 exports.scheduleMessage = async (req, res, next) => {
   try {
-    const { groupId, message, schedule } = req.body;
+    const { groupId, message, schedule, userSchedule } = req.body;
+    console.log("Received schedule request:", req.body);
+
     if (!groupId || !message || !schedule) {
+      console.log("Missing required fields");
       return res.status(400).json({ error: 'Missing required fields.' });
     }
-    // Optionally: check if groupId belongs to user
-    // ...existing code...
+
+    // Simulate DB save or scheduling logic
+    // await ScheduledMessage.create({ groupId, message, schedule, userSchedule });
+
+    // Respond to client
+    res.json({ success: true, msg: "Message scheduled!" });
   } catch (err) {
-    next(err); // Passes error to the error handler above
+    console.error("Error in scheduleMessage:", err);
+    next(err);
   }
 };
 
