@@ -9,8 +9,7 @@ dotenv.config();
 // Connect to MongoDB
 connectDB();
 
-// Start Telegram bot
-require('./telegramBot'); // <-- Add this line
+
 
 const app = express();
 
