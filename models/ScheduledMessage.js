@@ -10,6 +10,8 @@ const ScheduledMessageSchema = new mongoose.Schema({
   sentAt: { type: Date }, // when actually sent by cron
   sent: { type: Boolean, default: false }, // for frontend compatibility
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // add if you want user-specific messages
+  paused: { type: Boolean, default: false },
+  userSchedule: { type: String }, // Add this line
 });
 
 module.exports = mongoose.model("ScheduledMessage", ScheduledMessageSchema);

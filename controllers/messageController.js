@@ -17,10 +17,11 @@ exports.scheduleMessage = async (req, res) => {
 
     // Save scheduled message
     const scheduledMessage = new ScheduledMessage({
-      user: userId,
       groupId,
       message,
       scheduleTime,
+      userSchedule, // <-- Add this line
+      // ...other fields...
     });
     await scheduledMessage.save();
 
@@ -63,4 +64,16 @@ exports.getGroupMessages = async (req, res) => {
   const groupId = req.params.groupId;
   const messages = await ScheduledMessage.find({ groupId }).sort({ createdAt: 1 });
   res.json({ messages });
+};
+
+exports.toggleScheduledMessage = async (req, res) => {
+  try {
+    const msg = await ScheduledMessage.findById(req.params.id);
+    if (!msg) return res.status(404).json({ msg: 'Message not found' });
+    msg.paused = !msg.paused;
+    await msg.save();
+    res.json({ paused: msg.paused });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error' });
+  }
 };

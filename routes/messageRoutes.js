@@ -12,4 +12,7 @@ router.get('/scheduled', auth, messageController.getScheduledMessages);
 // @route   GET /api/messages/group/:groupId
 router.get('/group/:groupId', auth, messageController.getMessagesByGroup);
 
+// @route   PATCH /api/messages/schedule/:id/toggle
+router.patch('/schedule/:id/toggle', auth, messageController.toggleScheduledMessage);
+
 module.exports = router;

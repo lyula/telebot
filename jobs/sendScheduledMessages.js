@@ -7,6 +7,7 @@ cron.schedule("* * * * *", async () => {
   // Find all scheduled messages that should be sent now or at this interval
   const messages = await ScheduledMessage.find({
     isSent: false,
+    paused: false, // <-- Make sure this is included!
     // Add your logic to match the current time with scheduleTime/interval
     // For example, you could use a library like cron-parser to check if now matches scheduleTime
   });
