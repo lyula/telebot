@@ -11,14 +11,6 @@ console.log("Connecting to MongoDB...");
 connectDB();
 console.log("MongoDB connection initiated.");
 
-console.log("Starting Telegram bot...");
-try {
-  bot.launch();
-  console.log("Telegram bot started.");
-} catch (err) {
-  console.error("Failed to start Telegram bot:", err);
-}
-
 const app = express();
 
 // Middleware
