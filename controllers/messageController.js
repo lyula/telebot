@@ -78,7 +78,11 @@ exports.scheduleMessage = async (req, res, next) => {
 exports.getScheduledMessages = async (req, res) => {
   try {
     const userId = req.user.id;
-    const messages = await ScheduledMessage.find({ user: userId }).select('-__v');
+    let messages = await ScheduledMessage.find({ user: userId }).select('-__v');
+    messages = messages.map(msg => ({
+      ...msg.toObject(),
+      isScheduled: !!msg.schedule, // true if scheduled
+    }));
     res.json(messages);
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
