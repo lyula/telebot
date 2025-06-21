@@ -1,6 +1,6 @@
 const cron = require("node-cron");
 const cronParserModule = require("cron-parser");
-const cronParser = cronParserModule.parseExpression ? cronParserModule : cronParserModule.default;
+const parseExpression = cronParserModule.parseExpression || cronParserModule.default?.parseExpression;
 const ScheduledMessage = require("../models/ScheduledMessage");
 const CronSent = require("../models/CronSent");
 const bot = require("../telegramBot");
@@ -14,7 +14,7 @@ cron.schedule("* * * * *", async () => {
 
   for (const msg of messages) {
     try {
-      const interval = cronParser.parseExpression(msg.schedule, { currentDate: now });
+      const interval = parseExpression(msg.schedule, { currentDate: now });
       const prev = interval.prev().toDate();
 
       if (Math.abs(now - prev) < 60000) {
