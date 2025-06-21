@@ -4,15 +4,21 @@ const parseExpression = cronParserModule.parseExpression || cronParserModule.def
 const ScheduledMessage = require("../models/ScheduledMessage");
 const CronSent = require("../models/CronSent");
 const Group = require("../models/Group");
-const User = require("../models/User"); // Add this import at the top
+const User = require("../models/User");
 const bot = require("../telegramBot");
 
 cron.schedule("* * * * *", async () => {
   const now = new Date();
-  const messages = await ScheduledMessage.find({
-    isSent: false,
-    paused: false,
-  });
+  let messages;
+  try {
+    messages = await ScheduledMessage.find({
+      isSent: false,
+      paused: false,
+    });
+  } catch (err) {
+    console.error("Failed to fetch scheduled messages:", err);
+    return;
+  }
 
   for (const msg of messages) {
     try {
@@ -25,47 +31,83 @@ cron.schedule("* * * * *", async () => {
         // Ensure groupName is present
         let groupName = msg.groupName;
         if (!groupName) {
-          const group = await Group.findOne({ groupId: msg.groupId });
-          groupName = group ? group.displayName : "";
+          try {
+            const group = await Group.findOne({ groupId: msg.groupId });
+            groupName = group ? group.displayName : "";
+          } catch (err) {
+            console.warn("Failed to fetch group name:", err);
+            groupName = "";
+          }
         }
 
         // Fetch user string name using the real field name
         let userName = "";
         if (msg.user) {
-          const userDoc = await User.findById(msg.user);
-          userName = userDoc ? userDoc.username : "";
+          try {
+            const userDoc = await User.findById(msg.user);
+            userName = userDoc ? userDoc.username : "";
+          } catch (err) {
+            console.warn("Failed to fetch user name:", err);
+            userName = "";
+          }
+        } else {
+          console.warn("Scheduled message missing user field:", msg._id);
         }
 
         // Ensure userSchedule is present
         let userSchedule = msg.userSchedule;
         if (!userSchedule) {
-          // Try to fetch the scheduled message by message text and groupId
-          const scheduledMsg = await ScheduledMessage.findOne({
-            message: msg.message,
-            groupId: msg.groupId,
-          });
-          userSchedule = scheduledMsg ? scheduledMsg.userSchedule : "";
+          try {
+            const scheduledMsg = await ScheduledMessage.findOne({
+              message: msg.message,
+              groupId: msg.groupId,
+            });
+            userSchedule = scheduledMsg ? scheduledMsg.userSchedule : "";
+          } catch (err) {
+            console.warn("Failed to fetch userSchedule:", err);
+            userSchedule = "";
+          }
         }
 
-        // Always log to CronSent collection for every send
-        await CronSent.create({
+        // Log before creating CronSent
+        console.log("Creating CronSent record for message:", {
           groupId: msg.groupId,
-          groupName: groupName,
+          groupName,
           message: msg.message,
-          user: msg.user, // ObjectId reference
-          userName: userName, // String username
+          user: msg.user,
+          userName,
           originalScheduledMessage: msg._id,
-          userSchedule: userSchedule,
+          userSchedule,
           sentAt: new Date(),
         });
 
+        try {
+          await CronSent.create({
+            groupId: msg.groupId,
+            groupName: groupName,
+            message: msg.message,
+            user: msg.user,
+            userName: userName,
+            originalScheduledMessage: msg._id,
+            userSchedule: userSchedule,
+            sentAt: new Date(),
+          });
+          console.log("CronSent record created successfully for message:", msg._id);
+        } catch (err) {
+          console.error("Failed to create CronSent record:", err);
+        }
+
         // Mark as sent only for one-time messages (optional)
         if (!msg.schedule || msg.schedule === 'one-time') {
-          await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true, sentAt: new Date() });
+          try {
+            await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true, sentAt: new Date() });
+          } catch (err) {
+            console.error("Failed to update ScheduledMessage as sent:", err);
+          }
         }
       }
     } catch (err) {
-      console.error("Cron parse/send error:", err);
+      console.error("Cron parse/send error for message", msg._id, ":", err);
     }
   }
 });
