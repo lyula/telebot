@@ -1,4 +1,4 @@
-const { Telegraf } = require('telegraf');
+const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
@@ -7,7 +7,7 @@ if (!token) {
   process.exit(1);
 }
 console.log("Starting Telegram bot with polling...");
-const bot = new Telegraf(token);
+const bot = new TelegramBot(token, { polling: true });
 
 function getGreetingByHour(hour) {
   if (hour < 12) return "Good morning";
@@ -15,13 +15,14 @@ function getGreetingByHour(hour) {
   return "Good evening";
 }
 
-bot.start((ctx) => {
-  const userDate = new Date(ctx.message.date * 1000);
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  const userDate = new Date(msg.date * 1000);
   const hour = userDate.getUTCHours();
   const greeting = getGreetingByHour(hour);
 
   const usage = `
-${greeting}, ${ctx.message.from.first_name || "there"}! 👋
+${greeting}, ${msg.from.first_name || "there"}! 👋
 
 Welcome to Telebot.
 
@@ -46,7 +47,7 @@ Welcome to Telebot.
 © Owned by Shunmei
 `;
 
-  ctx.reply(usage, { parse_mode: "Markdown" });
+  bot.sendMessage(chatId, usage, { parse_mode: "Markdown" });
 });
 
 module.exports = bot; // Only export the bot, do NOT launch here
