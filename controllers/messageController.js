@@ -45,3 +45,15 @@ exports.getScheduledMessages = async (req, res) => {
     res.status(500).json({ msg: 'Server error' });
   }
 };
+
+// Get all scheduled messages for a user and group
+exports.getMessagesByGroup = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { groupId } = req.params;
+    const messages = await ScheduledMessage.find({ user: userId, groupId }).sort({ createdAt: 1 }).select('-__v');
+    res.json({ messages });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
