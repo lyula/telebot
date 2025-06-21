@@ -6,33 +6,16 @@ const Group = require('../models/Group');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 
 // Schedule a message
-exports.scheduleMessage = async (req, res) => {
+exports.scheduleMessage = async (req, res, next) => {
   try {
-    const { groupId, message, scheduleTime } = req.body;
-    const userId = req.user.id;
-
-    // Check if group exists and belongs to user
-    const group = await Group.findOne({ groupId, user: userId });
-    if (!group) return res.status(404).json({ msg: 'Group not found' });
-
-    // Save scheduled message
-    const scheduledMessage = new ScheduledMessage({
-      groupId,
-      message,
-      scheduleTime,
-      userSchedule, // <-- Add this line
-      // ...other fields...
-    });
-    await scheduledMessage.save();
-
-    // Schedule the message using node-cron
-    nodeCron.schedule(scheduleTime, async () => {
-      await bot.sendMessage(groupId, message);
-    });
-
-    res.status(201).json({ msg: 'Message scheduled', scheduledMessage });
+    const { groupId, message, schedule } = req.body;
+    if (!groupId || !message || !schedule) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+    // Optionally: check if groupId belongs to user
+    // ...existing code...
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    next(err); // Passes error to the error handler above
   }
 };
 

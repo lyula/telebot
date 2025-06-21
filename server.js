@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const bot = require('./telegramBot');
 
 console.log("Loading environment variables...");
 dotenv.config();
@@ -11,8 +12,12 @@ connectDB();
 console.log("MongoDB connection initiated.");
 
 console.log("Starting Telegram bot...");
-require('./telegramBot');
-console.log("Telegram bot started.");
+try {
+  bot.launch();
+  console.log("Telegram bot started.");
+} catch (err) {
+  console.error("Failed to start Telegram bot:", err);
+}
 
 const app = express();
 
@@ -31,6 +36,17 @@ app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("INTERNAL ERROR:", err); // This will show up in Render logs
+  res.status(500).json({ error: err.message || "Internal Server Error" });
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+
+bot.on("polling_error", (err) => {
+  console.error("Polling error:", err.message);
+  // Optionally: Notify admin, or try to restart polling after a delay
+});
