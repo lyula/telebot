@@ -3,14 +3,16 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
-// Load environment variables
+console.log("Loading environment variables...");
 dotenv.config();
 
-// Connect to MongoDB
+console.log("Connecting to MongoDB...");
 connectDB();
+console.log("MongoDB connection initiated.");
 
-// Start Telegram bot
-require('./telegramBot'); // <-- Add this line
+console.log("Starting Telegram bot...");
+require('./telegramBot');
+console.log("Telegram bot started.");
 
 const app = express();
 

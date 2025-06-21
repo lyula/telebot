@@ -2,6 +2,11 @@ const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
+if (!token) {
+  console.error("Telegram bot token is missing!");
+  process.exit(1);
+}
+console.log("Starting Telegram bot with polling...");
 const bot = new TelegramBot(token, { polling: true });
 
 function getGreetingByHour(hour) {
