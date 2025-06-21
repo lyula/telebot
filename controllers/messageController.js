@@ -3,6 +3,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const ScheduledMessage = require('../models/ScheduledMessage');
 const mainBot = require('../telegramBot'); // Use the main bot instance
 const Group = require('../models/Group'); // Import Group model
+const CronSent = require('../models/CronSent');
 
 // In-memory store for cron jobs to allow pausing/resuming
 const cronJobs = new Map();
@@ -92,12 +93,24 @@ exports.getScheduledMessages = async (req, res) => {
 // Get all scheduled and sent messages for a user and group
 exports.getMessagesByGroup = async (req, res) => {
   try {
-    const userId = req.user.id;
     const { groupId } = req.params;
-    const messages = await ScheduledMessage.find({ user: userId, groupId })
+    let messages = await ScheduledMessage.find({ groupId })
       .sort({ createdAt: 1 })
       .select('-__v');
-    res.json({ messages });
+
+    // For each message, count how many times it was sent via cron
+    const messagesWithCount = await Promise.all(
+      messages.map(async (msg) => {
+        const sentCount = await CronSent.countDocuments({ originalScheduledMessage: msg._id });
+        return {
+          ...msg.toObject(),
+          isScheduled: !!msg.schedule,
+          sentCount,
+        };
+      })
+    );
+
+    res.json({ messages: messagesWithCount });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }

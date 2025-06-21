@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const bot = require('./telegramBot');
+require('./jobs/sendScheduledMessages'); // <-- Add this line
 
 console.log("Loading environment variables...");
 dotenv.config();

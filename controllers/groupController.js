@@ -1,4 +1,5 @@
 const Group = require('../models/Group');
+const ScheduledMessage = require('../models/ScheduledMessage');
 
 // Save a new group chat ID with a display name
 exports.saveGroup = async (req, res) => {
@@ -22,9 +23,20 @@ exports.saveGroup = async (req, res) => {
 // Get all saved groups for the logged-in user
 exports.getGroups = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const groups = await Group.find({ user: userId }).select('-__v');
-    res.json(groups);
+    const groups = await Group.find({ user: req.user.id });
+    const chatList = await Promise.all(
+      groups.map(async (g) => {
+        const lastMsg = await ScheduledMessage.findOne({ groupId: g.groupId })
+          .sort({ createdAt: -1 });
+        return {
+          groupId: g.groupId,
+          displayName: g.displayName,
+          createdAt: g.createdAt,
+          lastMessageTime: lastMsg ? lastMsg.createdAt : g.createdAt,
+        };
+      })
+    );
+    res.json(chatList);
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
