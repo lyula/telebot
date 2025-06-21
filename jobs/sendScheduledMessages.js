@@ -36,6 +36,17 @@ cron.schedule("* * * * *", async () => {
           userName = userDoc ? userDoc.username : "";
         }
 
+        // Ensure userSchedule is present
+        let userSchedule = msg.userSchedule;
+        if (!userSchedule) {
+          // Try to fetch the scheduled message by message text and groupId
+          const scheduledMsg = await ScheduledMessage.findOne({
+            message: msg.message,
+            groupId: msg.groupId,
+          });
+          userSchedule = scheduledMsg ? scheduledMsg.userSchedule : "";
+        }
+
         // Always log to CronSent collection for every send
         await CronSent.create({
           groupId: msg.groupId,
@@ -44,7 +55,7 @@ cron.schedule("* * * * *", async () => {
           user: msg.user, // ObjectId reference
           userName: userName, // String username
           originalScheduledMessage: msg._id,
-          userSchedule: msg.userSchedule,
+          userSchedule: userSchedule,
           sentAt: new Date(),
         });
 
