@@ -9,20 +9,23 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 exports.scheduleMessage = async (req, res, next) => {
   try {
     const { groupId, message, schedule, userSchedule } = req.body;
-    console.log("Received schedule request:", req.body);
+    const userId = req.user.id; // assuming you use auth middleware
 
     if (!groupId || !message || !schedule) {
-      console.log("Missing required fields");
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
-    // Simulate DB save or scheduling logic
-    // await ScheduledMessage.create({ groupId, message, schedule, userSchedule });
+    // Save to DB
+    const saved = await ScheduledMessage.create({
+      groupId,
+      message,
+      schedule,
+      userSchedule,
+      user: userId,
+    });
 
-    // Respond to client
-    res.json({ success: true, msg: "Message scheduled!" });
+    res.json({ success: true, msg: "Message scheduled!", saved });
   } catch (err) {
-    console.error("Error in scheduleMessage:", err);
     next(err);
   }
 };
