@@ -2,6 +2,7 @@ const nodeCron = require('node-cron');
 const TelegramBot = require('node-telegram-bot-api');
 const ScheduledMessage = require('../models/ScheduledMessage');
 const mainBot = require('../telegramBot'); // Use the main bot instance
+const Group = require('../models/Group'); // Import Group model
 
 // In-memory store for cron jobs to allow pausing/resuming
 const cronJobs = new Map();
@@ -21,9 +22,12 @@ exports.scheduleMessage = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid cron schedule.' });
     }
 
+    const group = await Group.findOne({ groupId }); // or however you fetch group info
+
     // Save to DB
     const saved = await ScheduledMessage.create({
       groupId,
+      groupName: group?.displayName || "", // <-- ensure this is set
       message,
       schedule,
       userSchedule,
