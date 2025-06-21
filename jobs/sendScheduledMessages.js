@@ -1,5 +1,6 @@
 const cron = require("node-cron");
-const cronParser = require("cron-parser");
+const cronParserModule = require("cron-parser");
+const cronParser = cronParserModule.parseExpression ? cronParserModule : cronParserModule.default;
 const ScheduledMessage = require("../models/ScheduledMessage");
 const CronSent = require("../models/CronSent");
 const bot = require("../telegramBot");
