@@ -6,10 +6,17 @@ const Group = require("../models/Group");
 const User = require("../models/User");
 const bot = require("../telegramBot");
 
-// Helper for parseExpression (handles both CJS and ESM builds)
-const parseExpression =
-  cronParser.parseExpression ||
-  (cronParser.default && cronParser.default.parseExpression);
+// Robust parseExpression helper for all cron-parser versions
+function getParseExpression() {
+  if (typeof cronParser.parseExpression === "function") {
+    return cronParser.parseExpression;
+  }
+  if (cronParser.default && typeof cronParser.default.parseExpression === "function") {
+    return cronParser.default.parseExpression;
+  }
+  throw new Error("Cannot find parseExpression in cron-parser");
+}
+const parseExpression = getParseExpression();
 
 cron.schedule("* * * * *", async () => {
   const now = new Date();
@@ -26,7 +33,7 @@ cron.schedule("* * * * *", async () => {
 
   for (const msg of messages) {
     try {
-      // Use the helper here
+      // Use the robust helper
       const interval = parseExpression(msg.schedule, { currentDate: now });
       const prev = interval.prev().toDate();
 
