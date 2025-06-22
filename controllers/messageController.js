@@ -58,34 +58,26 @@ exports.scheduleMessage = async (req, res, next) => {
       msgData.intervalUnit = "immediate";
       msgData.repeatCount = 0;
       msgData.sentCount = 0;
-      // Save the message first
-      await msg.save();
+
+      // Create and save the message
+      const msg = await ScheduledMessage.create(msgData);
+
       // Send immediately to Telegram
-      await mainBot.sendMessage(groupId, msg.message);
-      msg.sent = true;
-      msg.isSent = true;
-      msg.sentCount = 1;
-      msg.lastSentAt = new Date();
-      await msg.save();
-      return res.json({ success: true, msg: 'Message sent immediately!', saved: msg });
-    }
-
-    const saved = await ScheduledMessage.create(msgData);
-
-    if (scheduleType === "now") {
-      // Send immediately via Telegram
       try {
-        await mainBot.sendMessage(groupId, message);
-        saved.isSent = true;
-        saved.sent = true;
-        saved.sentCount = 1;
-        saved.lastSentAt = new Date();
-        await saved.save();
+        await mainBot.sendMessage(groupId, msg.message);
+        msg.sent = true;
+        msg.isSent = true;
+        msg.sentCount = 1;
+        msg.lastSentAt = new Date();
+        await msg.save();
+        return res.json({ success: true, msg: 'Message sent immediately!', saved: msg });
       } catch (err) {
-        console.error("Failed to send 'now' message:", err);
+        return res.status(500).json({ error: "Failed to send message to Telegram." });
       }
     }
 
+    // For interval and datetime, just create and return as scheduled
+    const saved = await ScheduledMessage.create(msgData);
     res.json({ success: true, msg: 'Message scheduled!', saved });
   } catch (err) {
     next(err);
