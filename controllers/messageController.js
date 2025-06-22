@@ -7,32 +7,37 @@ const mainBot = require('../telegramBot');
 exports.scheduleMessage = async (req, res, next) => {
   try {
     const { groupId, message, schedule, userSchedule, isAutomated } = req.body;
-    const userId = req.user.id; // Assuming auth middleware
+    const userId = req.user.id;
 
     if (!groupId || !message || !schedule) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
-    const group = await Group.findOne({ groupId }); // or however you fetch group info
+    const group = await Group.findOne({ groupId });
+
+    // Determine if this is an instant/automated message
+    const isInstant = isAutomated || schedule === "* * * * *";
 
     // Save to DB
     const saved = await ScheduledMessage.create({
       groupId,
-      groupName: group?.displayName || "", // <-- ensure this is set
+      groupName: group?.displayName || "",
       message,
       schedule,
       userSchedule,
       user: userId,
-      isAutomated: !!isAutomated, // Store as boolean
+      isAutomated: !!isAutomated,
       paused: false,
+      isSent: isInstant,           // Mark as sent if instant/automated
+      sentAt: isInstant ? new Date() : undefined, // Set sent time if instant/automated
     });
 
-    // For automated messages, send the first instance immediately
-    if (isAutomated) {
+    // For instant/automated messages, send immediately
+    if (isInstant) {
       try {
         await mainBot.sendMessage(groupId, message);
       } catch (err) {
-        console.error('Failed to send immediate automated message:', err);
+        console.error('Failed to send immediate message:', err);
       }
     }
 
@@ -61,23 +66,10 @@ exports.getScheduledMessages = async (req, res) => {
 exports.getMessagesByGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
-    let messages = await ScheduledMessage.find({ groupId })
+    const messages = await ScheduledMessage.find({ groupId })
       .sort({ createdAt: 1 })
       .select('-__v');
-
-    // For each message, count how many times it was sent via cron
-    const messagesWithCount = await Promise.all(
-      messages.map(async (msg) => {
-        const sentCount = await CronSent.countDocuments({ originalScheduledMessage: msg._id });
-        return {
-          ...msg.toObject(),
-          isScheduled: !!msg.schedule,
-          sentCount,
-        };
-      })
-    );
-
-    res.json({ messages: messagesWithCount });
+    res.json({ messages });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
