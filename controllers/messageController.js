@@ -1,10 +1,7 @@
-const nodeCron = require('node-cron');
 const ScheduledMessage = require('../models/ScheduledMessage');
-const CronSent = require('../models/CronSent');
 const Group = require('../models/Group');
 const User = require('../models/User');
 const mainBot = require('../telegramBot');
-const cronJobs = new Map(); // In-memory store for jobs
 
 // Schedule a message
 exports.scheduleMessage = async (req, res, next) => {
@@ -14,11 +11,6 @@ exports.scheduleMessage = async (req, res, next) => {
 
     if (!groupId || !message || !schedule) {
       return res.status(400).json({ error: 'Missing required fields.' });
-    }
-
-    // Validate cron schedule
-    if (!nodeCron.validate(schedule)) {
-      return res.status(400).json({ error: 'Invalid cron schedule.' });
     }
 
     const group = await Group.findOne({ groupId }); // or however you fetch group info
@@ -43,52 +35,6 @@ exports.scheduleMessage = async (req, res, next) => {
         console.error('Failed to send immediate automated message:', err);
       }
     }
-
-    // Schedule the cron job (for both automated and scheduled messages)
-    const job = nodeCron.schedule(saved.schedule, async () => {
-      try {
-        // Check if paused
-        const msg = await ScheduledMessage.findById(saved._id);
-        if (msg.paused) return;
-
-        await mainBot.sendMessage(msg.groupId, msg.message);
-
-        // Fetch group name
-        let groupName = msg.groupName;
-        if (!groupName) {
-          const group = await Group.findOne({ groupId: msg.groupId });
-          groupName = group ? group.displayName : "";
-        }
-
-        // Fetch user name
-        let userName = "";
-        if (msg.user) {
-          const userDoc = await User.findById(msg.user);
-          userName = userDoc ? userDoc.username : "";
-        }
-
-        // Record in CronSent
-        await CronSent.create({
-          groupId: msg.groupId,
-          groupName,
-          message: msg.message,
-          user: msg.user,
-          userName,
-          originalScheduledMessage: msg._id,
-          userSchedule: msg.userSchedule || "",
-          sentAt: new Date(),
-        });
-
-        // Mark as sent only for one-time messages
-        if (!msg.schedule || msg.schedule === 'one-time') {
-          await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true, sentAt: new Date() });
-        }
-      } catch (err) {
-        console.error("Error sending or recording scheduled message:", err);
-      }
-    }, { scheduled: !saved.paused });
-
-    cronJobs.set(saved._id.toString(), job);
 
     res.json({ success: true, msg: 'Message scheduled!', saved });
   } catch (err) {
@@ -158,15 +104,6 @@ exports.toggleScheduledMessage = async (req, res) => {
 
     msg.paused = !msg.paused;
     await msg.save();
-
-    const job = cronJobs.get(req.params.id);
-    if (job) {
-      if (msg.paused) {
-        job.stop();
-      } else {
-        job.start();
-      }
-    }
 
     res.json({ paused: msg.paused });
   } catch (err) {
