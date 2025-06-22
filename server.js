@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const bot = require('./telegramBot');
 const mongoose = require('mongoose'); // <-- Add this line at the top
+const { scheduleAllMessages } = require('./scheduler');
 
 console.log("Loading environment variables...");
 dotenv.config();
