@@ -1,12 +1,10 @@
 const nodeCron = require('node-cron');
-const TelegramBot = require('node-telegram-bot-api');
 const ScheduledMessage = require('../models/ScheduledMessage');
-const mainBot = require('../telegramBot'); // Use the main bot instance
-const Group = require('../models/Group'); // Import Group model
 const CronSent = require('../models/CronSent');
-
-// In-memory store for cron jobs to allow pausing/resuming
-const cronJobs = new Map();
+const Group = require('../models/Group');
+const User = require('../models/User');
+const mainBot = require('../telegramBot');
+const cronJobs = new Map(); // In-memory store for jobs
 
 // Schedule a message
 exports.scheduleMessage = async (req, res, next) => {
@@ -47,27 +45,50 @@ exports.scheduleMessage = async (req, res, next) => {
     }
 
     // Schedule the cron job (for both automated and scheduled messages)
-    const job = nodeCron.schedule(schedule, async () => {
+    const job = nodeCron.schedule(saved.schedule, async () => {
       try {
-        // Check if the message is paused
+        // Check if paused
         const msg = await ScheduledMessage.findById(saved._id);
-        if (!msg.paused) {
-          await mainBot.sendMessage(groupId, message);
+        if (msg.paused) return;
+
+        await mainBot.sendMessage(msg.groupId, msg.message);
+
+        // Fetch group name
+        let groupName = msg.groupName;
+        if (!groupName) {
+          const group = await Group.findOne({ groupId: msg.groupId });
+          groupName = group ? group.displayName : "";
+        }
+
+        // Fetch user name
+        let userName = "";
+        if (msg.user) {
+          const userDoc = await User.findById(msg.user);
+          userName = userDoc ? userDoc.username : "";
+        }
+
+        // Record in CronSent
+        await CronSent.create({
+          groupId: msg.groupId,
+          groupName,
+          message: msg.message,
+          user: msg.user,
+          userName,
+          originalScheduledMessage: msg._id,
+          userSchedule: msg.userSchedule || "",
+          sentAt: new Date(),
+        });
+
+        // Mark as sent only for one-time messages
+        if (!msg.schedule || msg.schedule === 'one-time') {
+          await ScheduledMessage.findByIdAndUpdate(msg._id, { isSent: true, sentAt: new Date() });
         }
       } catch (err) {
-        console.error(`Failed to send scheduled message to group ${groupId}:`, err);
+        console.error("Error sending or recording scheduled message:", err);
       }
-    }, {
-      scheduled: false, // Start manually to respect paused state
-    });
+    }, { scheduled: !saved.paused });
 
-    // Store the cron job for later control (e.g., pausing)
     cronJobs.set(saved._id.toString(), job);
-
-    // Start the job if not paused
-    if (!saved.paused) {
-      job.start();
-    }
 
     res.json({ success: true, msg: 'Message scheduled!', saved });
   } catch (err) {

@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const bot = require('./telegramBot');
 require('./jobs/sendScheduledMessages'); // <-- Add this line
+const { scheduleAllMessages } = require('./scheduler');
 
 console.log("Loading environment variables...");
 dotenv.config();
@@ -42,4 +43,9 @@ app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 bot.on("polling_error", (err) => {
   console.error("Polling error:", err.message);
   // Optionally: Notify admin, or try to restart polling after a delay
+});
+
+mongoose.connection.once('open', async () => {
+  await scheduleAllMessages();
+  // ...any other startup logic...
 });

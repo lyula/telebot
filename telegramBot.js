@@ -24,7 +24,7 @@ bot.onText(/\/start/, (msg) => {
   const usage = `
 ${greeting}, ${msg.from.first_name || "there"}! 👋
 
-Welcome to Telebot.
+Welcome to Shun's bot.
 
 **How to set me up:**
 
@@ -32,13 +32,13 @@ Welcome to Telebot.
 2. **Add me to your group:** Open your group, tap "Add Members", search for my username, and add me.
 3. **Make me an admin:** Go to your group members list, tap my name, and promote me to admin. This is required for me to send messages.
 4. **Get your group ID:** 
-   - Add [@userinfobot](https://t.me/userinfobot) or [@getidsbot](https://t.me/getidsbot) to your group.
+   - Add [@getidsbot](https://t.me/getidsbot) to your group.
    - Send any message in the group.
-   - The helper bot will reply with your group’s ID (it looks like \`-100xxxxxxxxxx\`).
+   - The helper bot will reply with your group’s ID (the ID looks like \`-100xxxxxxxxxx\`).
 
 **Using the web app:**
 - Log in to the Telebot web app.
-- Add your group using the group ID you got above.
+- Add your group using the group ID you got above and give the group a name on Telebot.
 - Schedule messages or send them instantly from the dashboard.
 - I’ll deliver your messages to the group as scheduled!
 
