@@ -1,27 +1,44 @@
 const ScheduledMessage = require('./models/ScheduledMessage');
-const CronSent = require('./models/CronSent');
-const Group = require('./models/Group');
-const User = require('./models/User');
 const mainBot = require('./telegramBot');
+
+function getIntervalMs(value, unit) {
+  if (unit === 'minutes') return value * 60 * 1000;
+  if (unit === 'hours') return value * 60 * 60 * 1000;
+  if (unit === 'days') return value * 24 * 60 * 60 * 1000;
+  return 0;
+}
 
 async function scheduleAllMessages() {
   setInterval(async () => {
     const now = new Date();
-    // Find scheduled messages due to be sent and not yet sent
     const messages = await ScheduledMessage.find({
-      scheduledAt: { $lte: now },
-      isSent: false,
       paused: false,
+      isSent: false,
     });
 
     for (const msg of messages) {
-      try {
-        await mainBot.sendMessage(msg.groupId, msg.message);
+      const intervalMs = getIntervalMs(msg.intervalValue, msg.intervalUnit);
+
+      if (msg.sentCount < msg.repeatCount) {
+        if (
+          !msg.lastSentAt ||
+          (now - msg.lastSentAt) >= intervalMs
+        ) {
+          try {
+            await mainBot.sendMessage(msg.groupId, msg.message);
+            msg.lastSentAt = now;
+            msg.sentCount += 1;
+            if (msg.sentCount >= msg.repeatCount) {
+              msg.isSent = true;
+            }
+            await msg.save();
+          } catch (err) {
+            console.error("Failed to send scheduled message:", err);
+          }
+        }
+      } else if (!msg.isSent) {
         msg.isSent = true;
-        msg.sentAt = new Date();
         await msg.save();
-      } catch (err) {
-        console.error("Failed to send scheduled message:", err);
       }
     }
   }, 60 * 1000); // Check every minute

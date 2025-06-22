@@ -6,40 +6,28 @@ const mainBot = require('../telegramBot');
 // Schedule a message
 exports.scheduleMessage = async (req, res, next) => {
   try {
-    const { groupId, message, schedule, userSchedule, isAutomated } = req.body;
+    const { groupId, message, intervalValue, intervalUnit, repeatCount } = req.body;
     const userId = req.user.id;
 
-    if (!groupId || !message || !schedule) {
+    if (!groupId || !message || !intervalValue || !intervalUnit || !repeatCount) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
     const group = await Group.findOne({ groupId });
 
-    // Determine if this is an instant/automated message
-    const isInstant = isAutomated || schedule === "* * * * *";
-
-    // Save to DB
     const saved = await ScheduledMessage.create({
       groupId,
       groupName: group?.displayName || "",
       message,
-      schedule,
-      userSchedule,
+      intervalValue,
+      intervalUnit,
+      repeatCount,
+      sentCount: 0,
+      lastSentAt: null,
       user: userId,
-      isAutomated: !!isAutomated,
       paused: false,
-      isSent: isInstant,           // Mark as sent if instant/automated
-      sentAt: isInstant ? new Date() : undefined, // Set sent time if instant/automated
+      isSent: false,
     });
-
-    // For instant/automated messages, send immediately
-    if (isInstant) {
-      try {
-        await mainBot.sendMessage(groupId, message);
-      } catch (err) {
-        console.error('Failed to send immediate message:', err);
-      }
-    }
 
     res.json({ success: true, msg: 'Message scheduled!', saved });
   } catch (err) {
