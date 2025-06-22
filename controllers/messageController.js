@@ -48,10 +48,43 @@ exports.scheduleMessage = async (req, res, next) => {
       msgData.repeatCount = repeatCount;
     }
     if (scheduleType === "datetime" && scheduleDateTime) {
-      msgData.scheduleTime = scheduleDateTime;
+      msgData.scheduleTime = scheduleDateTime; // ISO string
+      msgData.repeatCount = 1;
+      msgData.sentCount = 0;
+    }
+    // ADD THIS for "now"
+    if (scheduleType === "now") {
+      msgData.intervalValue = 0;
+      msgData.intervalUnit = "immediate";
+      msgData.repeatCount = 0;
+      msgData.sentCount = 0;
+      // Save the message first
+      await msg.save();
+      // Send immediately to Telegram
+      await mainBot.sendMessage(groupId, msg.message);
+      msg.sent = true;
+      msg.isSent = true;
+      msg.sentCount = 1;
+      msg.lastSentAt = new Date();
+      await msg.save();
+      return res.json({ success: true, msg: 'Message sent immediately!', saved: msg });
     }
 
     const saved = await ScheduledMessage.create(msgData);
+
+    if (scheduleType === "now") {
+      // Send immediately via Telegram
+      try {
+        await mainBot.sendMessage(groupId, message);
+        saved.isSent = true;
+        saved.sent = true;
+        saved.sentCount = 1;
+        saved.lastSentAt = new Date();
+        await saved.save();
+      } catch (err) {
+        console.error("Failed to send 'now' message:", err);
+      }
+    }
 
     res.json({ success: true, msg: 'Message scheduled!', saved });
   } catch (err) {
