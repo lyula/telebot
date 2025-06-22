@@ -18,6 +18,10 @@ async function scheduleAllMessages() {
 
     for (const msg of messages) {
       const intervalMs = getIntervalMs(msg.intervalValue, msg.intervalUnit);
+      if (!intervalMs || isNaN(intervalMs) || intervalMs <= 0) {
+        console.error("Invalid interval for message:", msg._id, msg.intervalValue, msg.intervalUnit);
+        continue;
+      }
 
       if (msg.sentCount < msg.repeatCount) {
         if (

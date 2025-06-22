@@ -13,11 +13,12 @@ const ScheduledMessageSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   paused: { type: Boolean, default: false },
   userSchedule: { type: String },
-  intervalValue: { type: Number, required: true }, // e.g. 10
-  intervalUnit: { type: String, enum: ['minutes', 'hours', 'days'], required: true }, // e.g. "minutes"
-  repeatCount: { type: Number, required: true },
+  intervalValue: { type: Number },
+  intervalUnit: { type: String, enum: ['minutes', 'hours', 'days'] },
+  repeatCount: { type: Number },
   sentCount: { type: Number, default: 0 },
   lastSentAt: { type: Date },
+  scheduleType: { type: String, enum: ['now', 'datetime', 'interval'], required: true },
 });
 
 module.exports = mongoose.model("ScheduledMessage", ScheduledMessageSchema);

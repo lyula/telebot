@@ -6,31 +6,52 @@ const mainBot = require('../telegramBot');
 // Schedule a message
 exports.scheduleMessage = async (req, res, next) => {
   try {
-    const { groupId, message, intervalValue, intervalUnit, repeatCount } = req.body;
+    console.log("Received schedule request:", req.body);
+    
+    const { groupId, message, scheduleType, intervalValue, intervalUnit, repeatCount, scheduleDateTime } = req.body;
     const userId = req.user.id;
 
-    if (!groupId || !message ||
-        (typeof intervalValue === "undefined") ||
-        (typeof intervalUnit === "undefined") ||
-        (typeof repeatCount === "undefined")) {
+    if (!groupId || !message || !scheduleType) {
       return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    // Only require interval fields for recurring schedules
+    if (
+      scheduleType === "interval" &&
+      (
+        typeof intervalValue !== "number" || isNaN(intervalValue) || intervalValue <= 0 ||
+        typeof intervalUnit !== "string" || !["minutes", "hours", "days"].includes(intervalUnit) ||
+        typeof repeatCount !== "number" || isNaN(repeatCount) || repeatCount <= 0
+      )
+    ) {
+      return res.status(400).json({ error: 'Invalid interval fields for recurring schedule.' });
     }
 
     const group = await Group.findOne({ groupId });
 
-    const saved = await ScheduledMessage.create({
+    // Build the message object based on scheduleType
+    const msgData = {
       groupId,
       groupName: group?.displayName || "",
       message,
-      intervalValue,
-      intervalUnit,
-      repeatCount,
-      sentCount: 0,
-      lastSentAt: null,
       user: userId,
       paused: false,
       isSent: false,
-    });
+      sentCount: 0,
+      lastSentAt: null,
+      scheduleType, // <-- add this
+    };
+
+    if (scheduleType === "interval") {
+      msgData.intervalValue = intervalValue;
+      msgData.intervalUnit = intervalUnit;
+      msgData.repeatCount = repeatCount;
+    }
+    if (scheduleType === "datetime" && scheduleDateTime) {
+      msgData.scheduleTime = scheduleDateTime;
+    }
+
+    const saved = await ScheduledMessage.create(msgData);
 
     res.json({ success: true, msg: 'Message scheduled!', saved });
   } catch (err) {
