@@ -9,7 +9,10 @@ exports.scheduleMessage = async (req, res, next) => {
     const { groupId, message, intervalValue, intervalUnit, repeatCount } = req.body;
     const userId = req.user.id;
 
-    if (!groupId || !message || !intervalValue || !intervalUnit || !repeatCount) {
+    if (!groupId || !message ||
+        (typeof intervalValue === "undefined") ||
+        (typeof intervalUnit === "undefined") ||
+        (typeof repeatCount === "undefined")) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
