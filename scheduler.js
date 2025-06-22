@@ -1,6 +1,5 @@
 const ScheduledMessage = require('./models/ScheduledMessage');
 const mainBot = require('./telegramBot');
-const { DateTime } = require('luxon');
 
 async function scheduleAllMessages() {
   setInterval(async () => {
@@ -9,15 +8,13 @@ async function scheduleAllMessages() {
       isSent: false,
     });
 
-    const nowUtc = DateTime.utc();
+    const now = new Date();
 
     for (const msg of messages) {
       // Handle one-time scheduled messages
       if (msg.scheduleType === "datetime" && msg.scheduleTime && !msg.isSent) {
-        const userScheduled = DateTime.fromISO(msg.scheduleTime, { zone: msg.userTimezone || "UTC" });
-        const scheduledUtc = userScheduled.toUTC();
-
-        if (nowUtc >= scheduledUtc && msg.sentCount < 1) {
+        const scheduledDate = new Date(msg.scheduleTime);
+        if (now >= scheduledDate && msg.sentCount < 1) {
           try {
             await mainBot.sendMessage(msg.groupId, msg.message);
             msg.lastSentAt = new Date();
@@ -32,28 +29,26 @@ async function scheduleAllMessages() {
 
       // Handle recurring/interval messages
       if (msg.scheduleType === "interval" && msg.intervalValue && msg.intervalUnit && msg.repeatCount) {
-        // If never sent, send immediately
         let shouldSend = false;
-        let nextSendTime = msg.lastSentAt ? DateTime.fromJSDate(msg.lastSentAt) : null;
+        let nextSendTime = msg.lastSentAt ? new Date(msg.lastSentAt) : null;
 
         if (!msg.lastSentAt) {
           shouldSend = true;
         } else if (msg.sentCount < msg.repeatCount) {
-          // Calculate next send time
           switch (msg.intervalUnit) {
             case "minutes":
-              nextSendTime = nextSendTime.plus({ minutes: msg.intervalValue });
+              nextSendTime.setMinutes(nextSendTime.getMinutes() + msg.intervalValue);
               break;
             case "hours":
-              nextSendTime = nextSendTime.plus({ hours: msg.intervalValue });
+              nextSendTime.setHours(nextSendTime.getHours() + msg.intervalValue);
               break;
             case "days":
-              nextSendTime = nextSendTime.plus({ days: msg.intervalValue });
+              nextSendTime.setDate(nextSendTime.getDate() + msg.intervalValue);
               break;
             default:
               break;
           }
-          if (nowUtc >= nextSendTime) shouldSend = true;
+          if (now >= nextSendTime) shouldSend = true;
         }
 
         if (shouldSend && msg.sentCount < msg.repeatCount) {
